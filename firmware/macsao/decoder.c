@@ -246,8 +246,8 @@ void decoder(uint8_t **command, uint8_t data[])
             data[3] = mouseTo(data, menuData[menu][0] + 1, 3);
         }else{
             //we've reached the menu
-            menubar(1, menu, data[1] / 4);   //the mouse over this thing is: mouse y %4
-            data[2] = mouseTo(data, menuData[menu][0] + 1, menuItem*3);
+            menubar(1, menu, (data[1] - 4)  / 4);   //the mouse over this thing is: mouse y %4
+            data[2] = mouseTo(data, menuData[menu][0] + 1, menuItem * 3);
             Delay_Ms(40);
             if(data[2]) data[3] = 0;
         }

@@ -31,6 +31,7 @@
 #include "../extralibs/ch32v003_GPIO_branchless.h"
 #include "i2c_slave.h"
 #include "lib_swi2c.c"
+#include "ssd1306_i2c.h"
 
 #include "decoder.c"
 
