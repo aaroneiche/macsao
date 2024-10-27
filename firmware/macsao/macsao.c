@@ -207,7 +207,8 @@ void onWrite(uint8_t reg, uint8_t length) {
 		displayStack[length-1] = 0xFF; // A final byte at the end of last animation
 		
 		stackPtr = displayStack;
-		// stepPtr = displayStack;
+		actionStartPtr = displayStack;
+		bgStartPtr = displayStack;
 
 		break;
 		case 2: 

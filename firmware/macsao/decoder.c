@@ -55,7 +55,7 @@ void decoder(uint8_t **command, uint8_t data[])
     switch (*(*command))
     {
     case 0x01: // Desktop
-        desktop();
+        desktop(*(++(*command)));
         break;
     case 0x02: //MacPaint
         macPaint(*(++(*command))); //Next argument is the tool selected.
@@ -100,7 +100,7 @@ void decoder(uint8_t **command, uint8_t data[])
         ssd1306_fillCircle(*(++(*command)), *(++(*command)), *(++(*command)), *(++(*command)));
     break;
 
-    case 0x10: //MouseTo
+    case 16: //MouseTo
 
         //Mouse goal
         uint8_t xT = *(++(*command));
@@ -113,7 +113,7 @@ void decoder(uint8_t **command, uint8_t data[])
         }
 
         break;
-    case 0x11: //Draw Pixel
+    case 17: //Draw Pixel
         x = *(++(*command));
         y = *(++(*command));
         c = *(++(*command));
@@ -123,7 +123,7 @@ void decoder(uint8_t **command, uint8_t data[])
         // printf("drawing %u pixel at %u,%u\n",c,x,y);
 
         break;
-    case 0x12: //Wait 
+    case 18: //Wait 
 
         uint8_t target = *(++(*command)); //how much to wait.
         if(data[3] < target) {
@@ -136,14 +136,14 @@ void decoder(uint8_t **command, uint8_t data[])
         }
 
     break;
-    case 0x13: //Print out characters 
+    case 19: //Print out characters 
         // data[3] // Counter to keep track of current character
         x = *(++(*command));
         y = *(++(*command));
 
         curr = *(++(*command));
         
-        while (curr != 254) 
+        while (curr != 0) 
         {
             writeChar(x,y,curr,0);
             curr = *(++(*command));
@@ -154,17 +154,18 @@ void decoder(uint8_t **command, uint8_t data[])
 
     // 1 3 255 20 4 20 87 101 108 99 111 109 101 32 116 111 254
 
-    case 0x14: // Type out characters
+    case 20: // Type out characters
         // data[3] // Counter to keep track of current character
         x = *(++(*command));
         y = *(++(*command));
 
-        curr = *(++(*command));
+        curr = *(++(*command)); //steps the val to the next letter
 
         // if(curr != 254) {
         c = 0; 
 
-        while(c < data[3] && curr != 254) {
+        //Write all the previous characters out 
+        while(c < data[3] && curr != 0) {
             uint8_t cx = x;
             uint8_t cy = y;
             
@@ -183,13 +184,12 @@ void decoder(uint8_t **command, uint8_t data[])
             c++;
         }
 
-
-        // printf("===\n");
-        if(curr != 254) {
+        if(curr != 0) {
             data[3] += 1;
         }else{
             data[3] = 0;
-            ++(*command);
+            data[2] = 1;
+            // Delay_Ms(2000);
         }
         
             Delay_Ms(100);
@@ -252,16 +252,6 @@ void decoder(uint8_t **command, uint8_t data[])
             if(data[2]) data[3] = 0;
         }
 
-
-        // // Mouse goal
-        // uint8_t xT = *(++(*command));
-        // uint8_t yT = *(++(*command));
-        // bool res = mouseTo(data, xT, yT);
-
-        // if (res)
-        // {
-        //     data[2] = 1;
-        // }
 
         break;
     }

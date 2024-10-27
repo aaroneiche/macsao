@@ -800,14 +800,14 @@ void window(uint8_t x, uint8_t y, uint8_t w, uint8_t h, int scrollBars) {
 	}
 }
 
-void desktop()
+void desktop(uint8_t diskIcon)
 {
 	background();
 	Delay_Ms(1); //For some reason, we get hung up if this isn't here.
 	
-	drawIcon(54, 6, 1, 0);
+	drawIcon(54, 6, 1, diskIcon);
 
-		// Trash Can
+	// Trash Can
 	ssd1306_drawRect(tx, ty, tw, th, 0);
 	ssd1306_fillRect(tx + 1, ty + 1, tw - 2, th - 2, 1);
 
@@ -833,63 +833,48 @@ states:
 1 unselected
 2 selected
 3 opened
+4 open selected
 */
 void drawIcon(uint8_t x, uint8_t y, uint8_t ic, uint8_t state)
 {
 
 	switch(ic) {
-		case 1:
-			ssd1306_drawImage(x, y, disk, 8, 8, 0);
-			ssd1306_fillRect(x - 2, y + 9, 12, 4, 1);
-			ssd1306_fillRect(x -1, y + 9, 10, 3, 0);
+		case 1: //Disk
+			switch(state) {
+				case 1: 
+					ssd1306_drawImage(x, y, diskB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskW, 8, 8, 3);
+					break;
+				case 2:
+					ssd1306_drawImage(x, y, diskSelectedB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskSelectedW, 8, 8, 3);
+					break;
+				case 3:
+					ssd1306_drawImage(x, y, diskOpenB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskOpenW, 8, 8, 3);
+					break;
+				case 4:
+					ssd1306_drawImage(x, y, diskOpenSelectedB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskOpenSelectedW, 8, 8, 3);
+					break;
+			}
 
-			ssd1306_drawPixel(x + 1, y + 9, 1);
-			ssd1306_drawPixel(x + 4, y + 9, 1);
-			ssd1306_drawPixel(x + 7, y + 9, 1);
-
-			ssd1306_drawPixel(x + 1, y + 11, 1);
-			ssd1306_drawPixel(x + 5, y + 9, 1);
-			ssd1306_drawPixel(x + 6, y + 11, 1);
-
-			break;
+		break;
 	}
 
+	uint8_t selState = (state % 2 == 0);
 
+	ssd1306_fillRect(x - 2, y + 9, 12, 4, selState);
+	ssd1306_fillRect(x - 1, y + 9, 10, 3, !selState);
 
-	// uint8_t *icon;
-	// switch(ic) {
-	// 	case 1:
-	// 		icon = (state) ? disk : diskOpen;
-	// 	break;
-	// 	case 2:
-	// 		icon = (state) ? folder : folderOpen;
-	// 	break;
-	// 	case 3:
-	// 		icon = file;
-	// 	break;
-	// 	case 4: 
-	// 		icon = trash;
-	// 	break;
-	// }
+	ssd1306_drawPixel(x + 1, y + 9, selState);
+	ssd1306_drawPixel(x + 4, y + 9, selState);
+	ssd1306_drawPixel(x + 7, y + 9, selState);
 
+	ssd1306_drawPixel(x + 1, y + 11, selState);
+	ssd1306_drawPixel(x + 5, y + 9, selState);
+	ssd1306_drawPixel(x + 6, y + 11, selState);
 
-
-	// Disk image
-	// ssd1306_drawImage(dx, dy, disk, 8, 8, 0);
-	// ssd1306_fillRect(dx - 2, dy + th, tw + 4, 4, 1);
-
-	// ssd1306_fillRect(dx - 1, dy + th + 1, tw + 2, 2, 0);
-
-	// ssd1306_drawPixel(dx, dy + th + 1, 0);
-	// ssd1306_drawFastVLine(dx - 1, dy + th + 1, 2, 0);
-	// ssd1306_drawPixel(dx + 2, dy + th + 1, 0);
-	// ssd1306_drawFastVLine(dx + 1, dy + th + 1, 2, 0);
-
-	// ssd1306_drawPixel(dx + 4, dy + th + 2, 0);
-	// ssd1306_drawFastVLine(dx + 4, dy + th + 1, 2, 0);
-
-	// ssd1306_drawPixel(dx + 6, dy + th + 1, 0);
-	// ssd1306_drawFastVLine(dx + 7, dy + th + 1, 2, 0);
 }
 
 void mainWindow() {
@@ -902,10 +887,10 @@ void mainWindow() {
 }
 
 
-void openDisk() {
-	ssd1306_drawImage(dx, dy, diskOpen, 8, 8, 0);
-	ssd1306_fillRect(dx - 2, dy + th, tw + 4, 3, 0);
-}
+// void openDisk() {
+// 	ssd1306_drawImage(dx, dy, diskOpen, 8, 8, 0);
+// 	ssd1306_fillRect(dx - 2, dy + th, tw + 4, 3, 0);
+// }
 
 void macPaint(uint8_t selectedTool) {
 	background();
