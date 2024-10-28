@@ -39,10 +39,11 @@
 #define MAC 0
 #define SETTINGS 1
 
-#define BACKGROUND 0
-#define ACTION 1
+#define ANIMATE 0
+#define LIVEDRIVE 1
 
-bool mode = BACKGROUND;
+bool mode = ANIMATE;
+bool hasDrawn = false;
 
 volatile uint32_t overflowCount = 0;
 
@@ -60,70 +61,7 @@ volatile uint8_t eepData[64]; // max data to read in.
 
 //Default display stack
 volatile uint8_t displayStack[312] = {
-	// 0x01, 0xFF,		  // Desktop
-	// 0x10, 0x0A, 0x0A, // Mouse Around
-	// 0x01, 0xFF,		  // Desktop
-	// 0x10, 0x32, 0x0A, // Mouse Around
-	// 0xFF,
-	// 0x02, 0x02, 0xFF,		// MacPaint, tool 6
-	// 0x10, 0x37, 0x18,		// Mouse around
-	// 0x02, 0x06, 0xFF,		// MacPaint, tool
-	// 0x10, 0x0A, 0x0F, 0xFF,
-	// 0x12, 0x43, 0x03,0xFF
-/*
-	2, 12, 254, // Right now only 1 command fires after background
-	16, 4, 10,
-	21, 1,
-	255,
-	2, 4, 254,
-	16, 48, 10,
-	16, 40, 40,
-	16, 10, 15,
 
-	17, 10, 15, 0,
-	17, 10, 14, 0,
-	17, 10, 13, 0,
-	17, 10, 12, 0,
-	17, 10, 11, 0,
-	// top
-
-	17, 11, 10, 0,
-	17, 12, 10, 0,
-	17, 13, 10, 0,
-	17, 14, 10, 0,
-	17, 15, 10, 0,
-	17, 16, 10, 0,
-	// right
-
-	17, 17, 11, 0,
-	17, 17, 12, 0,
-	17, 17, 13, 0,
-	17, 17, 14, 0,
-	17, 17, 15, 0,
-	// bottom
-
-	17, 16, 16, 0,
-	17, 16, 17, 0,
-	17, 15, 17, 0,
-	17, 14, 17, 0,
-	17, 13, 17, 0,
-	17, 12, 17, 0,
-	17, 11, 17, 0,
-	17, 11, 16, 0,
-	// eyes
-
-	17, 12, 12, 0,
-	17, 15, 12, 0,
-	
-	// smile
-	17, 13, 14, 0,
-	17, 13, 15, 0,
-	17, 14, 15, 0,
-	17, 15, 14, 0,
-
-	18, 40,
-	255, 255
-*/
 	3, 254,
 	18, 10,
 	255, 255,
@@ -256,7 +194,7 @@ void onWrite(uint8_t reg, uint8_t length) {
 
 		break;
 
-		case 3:
+		case 3: //Read Data either from display stack (FFFF) or FROM EEPROM (0000-2000)
 			
 			r_addr = (i2c_registers[1] << 8) | i2c_registers[2]; //16-bit address
 			len = i2c_registers[3];
@@ -307,6 +245,29 @@ void onWrite(uint8_t reg, uint8_t length) {
 			stackPtr = displayStack;
 			actionStartPtr = displayStack;
 			bgStartPtr = displayStack;
+		break;
+		
+		case 5: 
+			//Set one of the variables in the Mac.
+			switch (i2c_registers[1]) {
+				case 1: // Animate(0) or LiveDrive(1)
+					mode = i2c_registers[2];
+					printf("setting mode to %u", mode);
+				break;
+				case 2: // Mouse X,Y
+					store[0] = i2c_registers[2];
+					store[1] = i2c_registers[3];
+					printf("set mouse X,Y to %u,%u", store[0], store[1]);
+				break;
+			}
+
+			stackPtr = displayStack;
+			actionStartPtr = displayStack;
+			bgStartPtr = displayStack;
+
+			if(mode == LIVEDRIVE) {
+				hasDrawn = false; // Trigger an update.
+			}
 			break;
 		}
 	printf("command finished.\n");
@@ -608,71 +569,98 @@ int main()
 			Set Background Ptr to this command
 		*/
 
-		while (*stackPtr != 254)  // Not 254. In background
-		{
-			// printf("current bg: %u \n",*stackPtr);
-			decoder(&stackPtr, store); // Decode command, include store for data access/updates.
-			stackPtr++;
-		}
-		stackPtr++; 	//Advance to the first item in the Action set
 
-		// printf("StackPtr: %u, ActionStartPtr: %u\n", stackPtr, actionStartPtr);
 
-		//check if this is the current Action 
-		while(stackPtr < actionStartPtr) {
-			// printf("skip: %u \n", *stackPtr);
-			stackPtr++;	//increment the stack pointer until we're at the right action.
-		}
-		// printf("current action: %u \n", *stackPtr);
-		//Now we're at the right action
-		decoder(&stackPtr, store);
+		if(mode == ANIMATE) {
+		//---
 
-		//if this action completed, advance the stackptr
-		if (store[2] == 1) {
-			stackPtr++;
-			actionStartPtr = stackPtr;
-			store[2] = 0; //clear after processed.
-		}else{
-			//Done - draw and go back to background to repeat.
-			stackPtr = bgStartPtr;
-		}
+			while (*stackPtr != 254)  // Not 254. In background
+			{
+				// printf("current bg: %u \n",*stackPtr);
+				decoder(&stackPtr, store); // Decode command, include store for data access/updates.
+				stackPtr++;
+			}
+			stackPtr++; 	//Advance to the first item in the Action set
 
-		// printf("displaying...\n");
-		ssd1306_refresh(); // Update the display.
+			// printf("StackPtr: %u, ActionStartPtr: %u\n", stackPtr, actionStartPtr);
 
-		if(*stackPtr == 255) {
-			// printf("end of action\n");
-			//end of actions for this background. Set background to next address.
-			stackPtr++;
-						
-			// if *this* address is also 255, that's the end of commands, go back to the beginning.
+			//check if this is the current Action 
+			while(stackPtr < actionStartPtr) {
+				// printf("skip: %u \n", *stackPtr);
+				stackPtr++;	//increment the stack pointer until we're at the right action.
+			}
+			// printf("current action: %u \n", *stackPtr);
+			//Now we're at the right action
+			decoder(&stackPtr, store);
+
+			//if this action completed, advance the stackptr
+			if (store[2] == 1) {
+				stackPtr++;
+				actionStartPtr = stackPtr;
+				store[2] = 0; //clear after processed.
+			}else{
+				//Done - draw and go back to background to repeat.
+				stackPtr = bgStartPtr;
+			}
+
+			// printf("displaying...\n");
+			ssd1306_refresh(); // Update the display.
+
 			if(*stackPtr == 255) {
-				// printf("double 255, end of command set. Starting over\n");
-				stackPtr = displayStack;
-				actionStartPtr = displayStack; //Since we don't know where the first action is, it'll always be behind the stack pointer
-				bgStartPtr = stackPtr;
-
-				if (state == MAC)
-				{
-					// printf("Mac!\n");
+				// printf("end of action\n");
+				//end of actions for this background. Set background to next address.
+				stackPtr++;
+							
+				// if *this* address is also 255, that's the end of commands, go back to the beginning.
+				if(*stackPtr == 255) {
+					// printf("double 255, end of command set. Starting over\n");
 					stackPtr = displayStack;
-					actionStartPtr = displayStack;
+					actionStartPtr = displayStack; //Since we don't know where the first action is, it'll always be behind the stack pointer
 					bgStartPtr = stackPtr;
-					// printf("%u\n",stackPtr);
-				}
-				else if (state == SETTINGS)
-				{
-					stackPtr = settingsStack;
-					actionStartPtr = settingsStack;
+
+					if (state == MAC)
+					{
+						// printf("Mac!\n");
+						stackPtr = displayStack;
+						actionStartPtr = displayStack;
+						bgStartPtr = stackPtr;
+						// printf("%u\n",stackPtr);
+					}
+					else if (state == SETTINGS)
+					{
+						stackPtr = settingsStack;
+						actionStartPtr = settingsStack;
+						bgStartPtr = stackPtr;
+					}
+				}else{
 					bgStartPtr = stackPtr;
 				}
 			}else{
-				bgStartPtr = stackPtr;
+				stackPtr = bgStartPtr;
 			}
-		}else{
-			stackPtr = bgStartPtr;
-		}
+		}else if(mode == LIVEDRIVE){
+			if(!hasDrawn) {
+				// draw whatever is in the background
+				while (*stackPtr != 254) // Not 254. In background
+				{
+					// printf("current bg: %u \n",*stackPtr);
+					decoder(&stackPtr, store); // Decode command, include store for data access/updates.
+					stackPtr++;
+				}
 
+				// Draw the mouse?
+				ssd1306_drawImage(store[0], store[1], pointerOutline, 8, 8, 4);
+				ssd1306_drawImage(store[0] + 1, store[1], pointer, 8, 8, 5);
+
+				// Write character buffer? -- for MacWrite
+			
+
+				ssd1306_refresh(); // Update the display.
+				// Mark the draw as complete, so it doesn't draw anymore.
+				hasDrawn = true;
+				stackPtr = displayStack; // reset the stack pointer
+			}
+		}
 	}
 }
 
