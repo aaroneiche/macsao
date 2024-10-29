@@ -201,15 +201,17 @@ void decoder(uint8_t **command, uint8_t data[])
             buffer_clear(c);
             data[2] = 1;
         break;
-        case 0x30: // Settings
+        case 48: // Settings
 
         int a = *(++(*command));
 
-        // bool selected = 0;
+        // Draw the settings window
         window(2, 8, 60, 34, 0);
 
+        //Selected Address x position
         int o = (a==10)? 4 : (a==34)? 24 : 43;
 
+        // "I2C Address"
         writeChar(4, 16, 73, 0);
         writeChar(9, 16, 50, 0);
         writeChar(14, 16, 67, 0);
@@ -223,6 +225,7 @@ void decoder(uint8_t **command, uint8_t data[])
         writeChar(49, 16, 83, 0);
         writeChar(54, 16, 83, 0);
 
+        //Address Options
         ssd1306_fillRect(o, 29, 17, 9, 0);
         ssd1306_drawstr(5, 30, "0A", a==10 ? 1 : 0);
         ssd1306_drawstr(25, 30, "22", a == 34 ? 1 : 0);

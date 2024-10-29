@@ -41,8 +41,12 @@
 
 #define ANIMATE 0
 #define LIVEDRIVE 1
+#define SETTINGS 2
 
-bool mode = ANIMATE;
+
+
+uint8_t mode = ANIMATE;
+uint8_t lastMode = ANIMATE;
 bool hasDrawn = false;
 
 volatile uint32_t overflowCount = 0;
@@ -90,9 +94,11 @@ volatile uint8_t displayStack[312] = {
 	 */
 };
 
-//This stack displays the settings menu. 
+// This stack displays the settings menu. 
+// The 3rd arg (10) is the selected value of the settings, 
+// its updated when preferences are loaded.
 volatile uint8_t settingsStack[32] = {
-	1, 48, 10, 254, 16, 38, 40, 255, 255
+	1, 1, 48, 10, 254, 254, 254, 254 //, 16, 38, 40, 255, 255
 };
 
 volatile uint8_t preferences[16];
@@ -117,14 +123,14 @@ uint8_t len;
 
 uint8_t	ssd1306_soft_init(void);
 
-volatile uint8_t state = MAC;
+// volatile uint8_t state = MAC;
 // volatile uint8_t state = SETTINGS;
 bool drawn = false;
 
 void onWrite(uint8_t reg, uint8_t length) {
-	// for(int c = 0; c < length; c++) {
-	// 	printf("%u: %u\n", c, i2c_registers[c]);
-	// }
+	for(int c = 0; c < length; c++) {
+		printf("%u: %u\n", c, i2c_registers[c]);
+	}
 
 	//Reset the state of the i2c lines, in case anything else is happening.
 	swi2c_init(&device);
@@ -251,6 +257,7 @@ void onWrite(uint8_t reg, uint8_t length) {
 			//Set one of the variables in the Mac.
 			switch (i2c_registers[1]) {
 				case 1: // Animate(0) or LiveDrive(1)
+					lastMode = mode;
 					mode = i2c_registers[2];
 					printf("setting mode to %u", mode);
 				break;
@@ -392,6 +399,20 @@ void EXTI7_0_IRQHandler(void)
 	EXTI->INTFR = EXTI_Line4;
 }
 
+
+void setMode(uint8_t newMode) {
+	lastMode = mode;
+	// printf("New mode is %u", newMode);
+	mode = newMode;
+	if(mode == SETTINGS){
+		stackPtr = settingsStack;
+	}else{
+		stackPtr = displayStack;
+	}
+}
+
+
+/* 
 int stateManager(int newState) {
 	if (newState == SETTINGS)
 	{
@@ -416,7 +437,7 @@ int stateManager(int newState) {
 	}
 	return MAC; // If somehow we don't return properly...
 }
-
+ */
 
 
 int main()
@@ -486,7 +507,7 @@ int main()
 		preferences[0] = 10;
 	}
 	//Make sure the display data for settings is up-to-date.
-	settingsStack[2] = preferences[0];
+	settingsStack[3] = preferences[0];
 
 	// Preferences 1 and 2 are address bytes (high and low) load data from.
 	uint16_t loadFromAddr = (preferences[1] << 8) | preferences[2];
@@ -509,17 +530,20 @@ int main()
 	//Setup display
 	ssd1306_soft_init();
 
-	printf("Command Start: %u\n", displayStack);
+	// printf("Command Start: %u\n", displayStack);
 
 	while(1) {
 
 		if(counting == true && ((SysTick->CNT - start)/47999) > 350) {
 			counting = false; // Stop counting. We're not doing anything else here
-			state = stateManager(!state);
+			// state = stateManager(!state);
+			// mode = (mode != SETTINGS)? SETTINGS:lastMode;
+			setMode((mode != SETTINGS) ? SETTINGS : lastMode);
+			hasDrawn = false;
 		} 
 		// printf("post button check. State now: %u\n",state);
 		if(buttonShortPress) {
-			if(state == SETTINGS){
+			if(mode == SETTINGS){
 				//advance I2C Address
 				switch(preferences[0]) {
 					case 10:
@@ -532,10 +556,14 @@ int main()
 						preferences[0] = 10;
 					break;
 				}
-				settingsStack[2] = preferences[0];
+				settingsStack[3] = preferences[0];
 				setI2CAddress(preferences[0]);
+				stackPtr = settingsStack;
+				// printf("stack pointer again at\n: %u",stackPtr);
 			}
 			printf("button short!\n");
+
+			hasDrawn = false;
 			//Here is where button handling is for advancing the state
 			buttonShortPress = false;
 		}
@@ -618,20 +646,20 @@ int main()
 					actionStartPtr = displayStack; //Since we don't know where the first action is, it'll always be behind the stack pointer
 					bgStartPtr = stackPtr;
 
-					if (state == MAC)
-					{
-						// printf("Mac!\n");
-						stackPtr = displayStack;
-						actionStartPtr = displayStack;
-						bgStartPtr = stackPtr;
-						// printf("%u\n",stackPtr);
-					}
-					else if (state == SETTINGS)
-					{
-						stackPtr = settingsStack;
-						actionStartPtr = settingsStack;
-						bgStartPtr = stackPtr;
-					}
+					// if (mode != SETTINGS)
+					// {
+					// 	// printf("Mac!\n");
+					// 	stackPtr = displayStack;
+					// 	actionStartPtr = displayStack;
+					// 	bgStartPtr = stackPtr;
+					// 	// printf("%u\n",stackPtr);
+					// }
+					// else if (mode == SETTINGS)
+					// {
+					// 	stackPtr = settingsStack;
+					// 	actionStartPtr = settingsStack;
+					// 	bgStartPtr = stackPtr;
+					// }
 				}else{
 					bgStartPtr = stackPtr;
 				}
@@ -660,7 +688,25 @@ int main()
 				hasDrawn = true;
 				stackPtr = displayStack; // reset the stack pointer
 			}
+		}else if(mode == SETTINGS) {
+			
+			
+			if(!hasDrawn) {
+				
+				stackPtr = settingsStack;
+				// printf("stack pointer now pointing at %u\n",stackPtr);
+				while (*stackPtr != 254) // Not 254. In background
+				{
+					// printf("current bg: %u \n",*stackPtr);
+					decoder(&stackPtr, store); // Decode command, include store for data access/updates.
+					stackPtr++;
+				}
+				ssd1306_refresh(); // Update the display.
+				hasDrawn = true;
+			}
+			
 		}
+
 	}
 }
 
