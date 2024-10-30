@@ -166,13 +166,15 @@ void onWrite(uint8_t reg, uint8_t length) {
 		uint8_t bytesForPage = 32 - (addr % 32); // How far to end of page.
 
 		uint8_t *sptr = i2c_registers + 3; //A pointer to the first byte we're gonna send.
-		uint8_t dataLen = length - 3; // Length of the data to store.
+		int8_t dataLen = length - 3; // Length of the data to store.
 
 		// printf("data length: %u\n", dataLen);
 		// printf("byte value of array: %u\n", sptr);
 		while (dataLen > 0) // While there are bytes to write
 		{
 			// printf("another loop: %u\n", dataLen);
+			// printf("addr: %u, bytesForPage %u, datalength %u\n", addr, bytesForPage, dataLen);
+
 			if (dataLen > bytesForPage) // We have more bytes than can write in this page.
 			{
 
@@ -187,14 +189,14 @@ void onWrite(uint8_t reg, uint8_t length) {
 				sptr +=  bytesForPage; // Array pointer
 				addr += bytesForPage; // address value.
 
-				//update bytesForPage to the next length of bytes to send.
+				// update bytesForPage to the next length of bytes to send.
 				bytesForPage = 32 - (addr % 32);
 			}
 			else // We can write these bytes just to this page.
 			{
 				// printf("one shot: sending %u bytes to %4x\n", dataLen, addr);
 				swi2c_master_transmit_eeprom(&eeprom, addr, sptr, dataLen);
-				dataLen -= dataLen; // subtract remaining bytes.
+				dataLen -= bytesForPage; // subtract remaining bytes.
 			}
 		}
 
