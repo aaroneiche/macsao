@@ -64,7 +64,7 @@ volatile uint8_t i2c_registers[32] = {};
 volatile uint8_t eepData[64]; // max data to read in.
 
 //Default display stack
-volatile uint8_t displayStack[312] = {
+volatile uint8_t displayStack[255] = {
 
 	3, 254,
 	18, 10,
@@ -137,24 +137,28 @@ void onWrite(uint8_t reg, uint8_t length) {
 
 	switch (i2c_registers[0])
 	{
-		case 1:
+		case 1: {
 		//write to display data.
 		
 		//Clear the store data in case the new command is using it.
 		store[3] = 0;
 
-		for (int i = 1; i <= length; i++)
+		// Get the address offset to write
+		uint8_t offset = i2c_registers[1];
+
+		for (int i = 2; i <= length; i++)
 		{
-			displayStack[i - 1] = i2c_registers[i];
+			displayStack[offset + i - 2] = i2c_registers[i];
 		};
 
-		displayStack[length-1] = 0xFF; // A final byte at the end of last animation
+		// displayStack[length-1] = 0xFF; // A final byte at the end of last animation
 		
 		stackPtr = displayStack;
 		actionStartPtr = displayStack;
 		bgStartPtr = displayStack;
 
 		break;
+		}
 		case 2: 
 		//write to stored memory
 
@@ -278,6 +282,18 @@ void onWrite(uint8_t reg, uint8_t length) {
 				hasDrawn = false; // Trigger an update.
 			}
 			break;
+		case 6:
+			//Read variable value;
+			switch (i2c_registers[1])
+			{
+			case 1: // Animate(0) or LiveDrive(1)
+				i2c_registers[0] = mode;
+				break;
+			case 2: // Mouse X,Y
+				i2c_registers[0] = store[0];
+				i2c_registers[1] = store[1];
+				break;
+			}
 		}
 	printf("command finished.\n");
 
