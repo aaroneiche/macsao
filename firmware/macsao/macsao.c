@@ -63,23 +63,12 @@ volatile uint8_t i2c_registers[32] = {};
 //Where EEPROM data is put to make available externally.
 volatile uint8_t eepData[64]; // max data to read in.
 
+const uint8_t defaultStack[] = {
+// 1,2,5,5,5,35,24,1,254,16,34,38,22,3,4,255,1,2,5,5,5,10,30,1,254,16,10,18,255,255};
+1,1,254,16,58,8,255,1,3,5,5,8,35,24,2,254,22,4,6,16,58,43,16,8,11,255,255};
+
 //Default display stack
 volatile uint8_t displayStack[255] = {
-
-	3, 254,
-	18, 10,
-	255, 255,
-	/* 	2, 4,
-		254,
-		16, 40, 40,
-		255,
-		1,
-		254,
-		16, 10, 7,
-		18, 10,
-		255,
-		255 */
-
 	/*
 	//Writes "Welcome to Supercon"
 
@@ -156,6 +145,10 @@ void onWrite(uint8_t reg, uint8_t length) {
 		stackPtr = displayStack;
 		actionStartPtr = displayStack;
 		bgStartPtr = displayStack;
+
+		if(mode == LIVEDRIVE) {
+			hasDrawn = false;
+		}
 
 		break;
 		}
@@ -265,12 +258,12 @@ void onWrite(uint8_t reg, uint8_t length) {
 				case 1: // Animate(0) or LiveDrive(1)
 					lastMode = mode;
 					mode = i2c_registers[2];
-					printf("setting mode to %u", mode);
+					// printf("setting mode to %u", mode);
 				break;
 				case 2: // Mouse X,Y
 					store[0] = i2c_registers[2];
 					store[1] = i2c_registers[3];
-					printf("set mouse X,Y to %u,%u", store[0], store[1]);
+					// printf("set mouse X,Y to %u,%u", store[0], store[1]);
 				break;
 			}
 
@@ -532,7 +525,7 @@ int main()
 	printf("loadFrom address: %4x\n", loadFromAddr, preferences[1], preferences[2]);
 	//Preferences 3 is the number of bytes to load.
 
-	if(loadFromAddr != 0) {
+	if(loadFromAddr != 0 && loadFromAddr != 0xFFFF ) {
 		printf("Stored address is %4x. Loading...\n", loadFromAddr);
 		// Get data from eeprom
 		getStored(loadFromAddr, displayStack, preferences[3]);
@@ -540,6 +533,14 @@ int main()
 		
 	}else{
 		printf("Stored address is 0, playing default\n");
+
+		memcpy(displayStack, defaultStack, sizeof(defaultStack));
+		
+		// for(int i =0; i < sizeof(defaultStack); i++) {
+		// 	printf("%u:  %u\n",i,displayStack[i]);
+		// }
+		// displayStack[sizeof(defaultStack)] = 255;
+
 	} // Else display stack remains default, or current or whatever.
 
 	// Setup I2C from the badge.
@@ -626,6 +627,7 @@ int main()
 				decoder(&stackPtr, store); // Decode command, include store for data access/updates.
 				stackPtr++;
 			}
+			// printf("Stack is 254\n");
 			stackPtr++; 	//Advance to the first item in the Action set
 
 			// printf("StackPtr: %u, ActionStartPtr: %u\n", stackPtr, actionStartPtr);
@@ -655,8 +657,11 @@ int main()
 			if(*stackPtr == 255) {
 				// printf("end of action\n");
 				//end of actions for this background. Set background to next address.
+				// printf("ptr before: %u\n", *stackPtr);
 				stackPtr++;
-							
+
+				// printf("ptr now: %u at %u\n", *stackPtr, stackPtr);
+
 				// if *this* address is also 255, that's the end of commands, go back to the beginning.
 				if(*stackPtr == 255) {
 					// printf("double 255, end of command set. Starting over\n");

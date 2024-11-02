@@ -64,7 +64,7 @@ void decoder(uint8_t **command, uint8_t data[])
         macWrite();    
         break;
     case 0x05: //Window
-        window(*(++(*command)), *(++(*command)), *(++(*command)), *(++(*command)), 0);
+        window(*(++(*command)), *(++(*command)), *(++(*command)), *(++(*command)), *(++(*command)));
 
         break;
     case 0x06: //Draw a menu (does not include a background.)

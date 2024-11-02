@@ -17,6 +17,7 @@
 // #include "font.c"
 #include "narrowFont.c"
 #include "buffer.h"
+#include "ssd1306_i2c.h"
 
 // comfortable packet size for this OLED
 #define SSD1306_PSZ 32
@@ -710,6 +711,61 @@ int8_t menuData[][2] = {
 };
 
 /* 
+icon:
+1 = disk
+2 = folder
+3 = file
+4 = trash
+
+states:
+1 unselected
+2 selected
+3 opened
+4 open selected
+*/
+void drawIcon(uint8_t x, uint8_t y, uint8_t ic, uint8_t state)
+{
+
+	switch(ic) {
+		case 1: //Disk
+			switch(state) {
+				case 1: 
+					ssd1306_drawImage(x, y, diskB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskW, 8, 8, 3);
+					break;
+				case 2:
+					ssd1306_drawImage(x, y, diskSelectedB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskSelectedW, 8, 8, 3);
+					break;
+				case 3:
+					ssd1306_drawImage(x, y, diskOpenB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskOpenW, 8, 8, 3);
+					break;
+				case 4:
+					ssd1306_drawImage(x, y, diskOpenSelectedB, 8, 8, 2);
+					ssd1306_drawImage(x, y, diskOpenSelectedW, 8, 8, 3);
+					break;
+			}
+
+		break;
+	}
+
+	uint8_t selState = (state % 2 == 0);
+
+	ssd1306_fillRect(x - 2, y + 9, 12, 4, selState);
+	ssd1306_fillRect(x - 1, y + 9, 10, 3, !selState);
+
+	ssd1306_drawPixel(x + 1, y + 9, selState);
+	ssd1306_drawPixel(x + 4, y + 9, selState);
+	ssd1306_drawPixel(x + 7, y + 9, selState);
+
+	ssd1306_drawPixel(x + 1, y + 11, selState);
+	ssd1306_drawPixel(x + 5, y + 9, selState);
+	ssd1306_drawPixel(x + 6, y + 11, selState);
+
+}
+
+/* 
 Draw the background for the Mac Desktop
  */
 void background(void)
@@ -822,60 +878,6 @@ void desktop(uint8_t diskIcon)
 
 	// window(5, 7, 44, 35, 3); // Scrollbars: 1 = horizontal, 2 = vertical, 3 = both.
 };
-/* 
-icon:
-1 = disk
-2 = folder
-3 = file
-4 = trash
-
-states:
-1 unselected
-2 selected
-3 opened
-4 open selected
-*/
-void drawIcon(uint8_t x, uint8_t y, uint8_t ic, uint8_t state)
-{
-
-	switch(ic) {
-		case 1: //Disk
-			switch(state) {
-				case 1: 
-					ssd1306_drawImage(x, y, diskB, 8, 8, 2);
-					ssd1306_drawImage(x, y, diskW, 8, 8, 3);
-					break;
-				case 2:
-					ssd1306_drawImage(x, y, diskSelectedB, 8, 8, 2);
-					ssd1306_drawImage(x, y, diskSelectedW, 8, 8, 3);
-					break;
-				case 3:
-					ssd1306_drawImage(x, y, diskOpenB, 8, 8, 2);
-					ssd1306_drawImage(x, y, diskOpenW, 8, 8, 3);
-					break;
-				case 4:
-					ssd1306_drawImage(x, y, diskOpenSelectedB, 8, 8, 2);
-					ssd1306_drawImage(x, y, diskOpenSelectedW, 8, 8, 3);
-					break;
-			}
-
-		break;
-	}
-
-	uint8_t selState = (state % 2 == 0);
-
-	ssd1306_fillRect(x - 2, y + 9, 12, 4, selState);
-	ssd1306_fillRect(x - 1, y + 9, 10, 3, !selState);
-
-	ssd1306_drawPixel(x + 1, y + 9, selState);
-	ssd1306_drawPixel(x + 4, y + 9, selState);
-	ssd1306_drawPixel(x + 7, y + 9, selState);
-
-	ssd1306_drawPixel(x + 1, y + 11, selState);
-	ssd1306_drawPixel(x + 5, y + 9, selState);
-	ssd1306_drawPixel(x + 6, y + 11, selState);
-
-}
 
 void mainWindow() {
 
@@ -981,7 +983,7 @@ void ssd1306_narrowChar(uint8_t x, uint8_t y, uint8_t *ch, uint8_t color) {
 Takes an x, y, character code, and color rule (0-5) and renders 
 character to the display.
 */
-void writeChar(uint8_t x, uint8_t y, uint8_t ch[], uint8_t color) {
+void writeChar(uint8_t x, uint8_t y, uint8_t ch, uint8_t color) {
 
 	char* c = getChar(ch);
 	// ssd1306_drawImage(x, y, c, 8, 8, color);
