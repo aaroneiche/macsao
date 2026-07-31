@@ -65,7 +65,57 @@ volatile uint8_t eepData[64]; // max data to read in.
 
 const uint8_t defaultStack[] = {
 // 1,2,5,5,5,35,24,1,254,16,34,38,22,3,4,255,1,2,5,5,5,10,30,1,254,16,10,18,255,255};
-1,1,254,16,58,8,255,1,3,5,5,8,35,24,2,254,22,4,6,16,58,43,16,8,11,255,255};
+
+//current: // 1,1,254,16,58,8,255,1,3,5,5,8,35,24,2,254,22,4,6,16,58,43,16,8,11,255,255};
+
+
+
+ 
+1,1,254,						// Draw Desktop
+16,58,8,255,					// Mouse to 58,8 (disk icon)
+1,3,5,5,8,35,24,2,				// Draw desktop (disk open) window at 5,8 35x24, w/scrollbars
+7,10,16,2,1,					// Draw folder icon (2) at 10,16,unselected.
+7,23,16,5,1, 					// Draw App Icon (5) at 23,16, unselected
+254,
+22,4,6,							// Mouse to menu #4, 6th
+16,58,43,						// Mouse to 58,43 (trash)
+16,8,11,	    				// Mouse to 8,11 Finished
+255,
+
+//Draw a circle in MacPaint
+2,10,15,20,20,2,0,254,18,5,255,
+2,10,15,22,22,3,0,254,18,5,255,
+2,10,15,23,23,4,0,254,18,5,255,
+2,10,15,24,24,5,0,254,16,4,10,255,
+2,10,15,24,24,5,0,254,
+16,24,26,15,24,26,2,1,255,
+2,10,15,24,24,5,0,15,24,26,2,1,254,
+18,1,
+24,24,24,5,0,
+24,24,26,2,1,255,
+2,10,254,
+18,1,255,
+253,15,
+2,10,254,
+22,1,6,255,
+
+1,3,5,5,8,35,24,2,				// Draw desktop (disk open) window at 5,8 35x24, w/scrollbars
+7,10,16,2,1,					// Draw folder icon (2) at 10,16,unselected.
+7,23,16,5,1, 					// Draw App Icon (5) at 23,16, unselected
+254,
+18,10,
+255,
+253,4,
+
+//,'Insanely great' typed out in MacWrite
+3,254,
+20,4,20,73,110,115,97,110,101,108,121,0,255,
+3,19,4,20,73,110,115,97,110,101,108,121,0,254,
+20,4,28,71,114,101,97,116,33,0,255,253,10,255,
+253,100,
+255
+};
+
 
 //Default display stack
 volatile uint8_t displayStack[255] = {
@@ -543,6 +593,8 @@ int main()
 
 	} // Else display stack remains default, or current or whatever.
 
+	Delay_Ms(200); //Give it a moment before we setup the I2C.
+
 	// Setup I2C from the badge.
 	SetupI2CSlave(preferences[0], i2c_registers, sizeof(i2c_registers), onWrite, NULL, false);
 	
@@ -659,6 +711,21 @@ int main()
 				//end of actions for this background. Set background to next address.
 				// printf("ptr before: %u\n", *stackPtr);
 				stackPtr++;
+
+				//Optional pause at the end of a background/animated section
+				if(*stackPtr == 253) {
+					stackPtr++; // get the wait value.
+					uint8_t count = *stackPtr;
+
+					while(count != 0) {
+						Delay_Ms(100);
+						count = count - 1;
+					}
+
+					stackPtr++; //Advance the stack pointer to whatever is next.
+
+				}
+
 
 				// printf("ptr now: %u at %u\n", *stackPtr, stackPtr);
 

@@ -716,6 +716,7 @@ icon:
 2 = folder
 3 = file
 4 = trash
+5 = Application
 
 states:
 1 unselected
@@ -746,8 +747,34 @@ void drawIcon(uint8_t x, uint8_t y, uint8_t ic, uint8_t state)
 					ssd1306_drawImage(x, y, diskOpenSelectedW, 8, 8, 3);
 					break;
 			}
-
 		break;
+		case 2: //folder
+			switch(state) {
+				case 1: 
+					ssd1306_drawImage(x, y, folder, 8, 8, 2);
+					// ssd1306_drawImage(x, y, diskW, 8, 8, 3);
+					break;
+				// case 2:
+				// 	ssd1306_drawImage(x, y, diskSelectedB, 8, 8, 2);
+				// 	ssd1306_drawImage(x, y, diskSelectedW, 8, 8, 3);
+				// 	break;
+				// case 3:
+				// 	ssd1306_drawImage(x, y, diskOpenB, 8, 8, 2);
+				// 	ssd1306_drawImage(x, y, diskOpenW, 8, 8, 3);
+				// 	break;
+				// case 4:
+				// 	ssd1306_drawImage(x, y, diskOpenSelectedB, 8, 8, 2);
+				// 	ssd1306_drawImage(x, y, diskOpenSelectedW, 8, 8, 3);
+				// 	break;
+			}
+		break;
+		case 5: //Application 1
+			switch(state) {
+				case 1: 
+					ssd1306_drawImage(x, y, appIcon, 8, 8, 2);
+					// ssd1306_drawImage(x, y, diskW, 8, 8, 3);
+					break;
+			}
 	}
 
 	uint8_t selState = (state % 2 == 0);

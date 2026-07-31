@@ -6,6 +6,7 @@
 #include <string.h>
 #include "buffer.h"
 #include "paintBuffer.c"
+// #include "hello.h"
 /* 
 Command Decoder - takes bytes, turns them into screens
 
@@ -28,6 +29,7 @@ Command Decoder - takes bytes, turns them into screens
 uint8_t x = 0;
 uint8_t y = 0;
 uint8_t curr = 0;
+uint8_t paintFrame = 0;
 
 /*
     Decoder steps through items in the command list and decodes them to executing methods.
@@ -71,9 +73,12 @@ void decoder(uint8_t **command, uint8_t data[])
         // menus, selected, selected Item
         menubar(1, *(++(*command)), *(++(*command)));
     break;
+    case 0x07: //Draw an icon
+
+        drawIcon(*(++(*command)),*(++(*command)),*(++(*command)),*(++(*command)));
+    break;
     
     // Basic Drawing tools
-
     case 0x09: //Draw a pixel at coordinates x,y
         ssd1306_drawPixel(*(++(*command)), *(++(*command)), *(++(*command)));
         break;
@@ -98,6 +103,7 @@ void decoder(uint8_t **command, uint8_t data[])
     break;
     case 0x0F:
         ssd1306_fillCircle(*(++(*command)), *(++(*command)), *(++(*command)), *(++(*command)));
+        data[2] = 1;
     break;
 
     case 16: //MouseTo
@@ -113,7 +119,7 @@ void decoder(uint8_t **command, uint8_t data[])
         }
 
         break;
-    case 17: //Draw Pixel
+    case 17: //Draw Pixel to the Buffer
         x = *(++(*command));
         y = *(++(*command));
         c = *(++(*command));
@@ -201,62 +207,109 @@ void decoder(uint8_t **command, uint8_t data[])
             buffer_clear(c);
             data[2] = 1;
         break;
+
+        /* 
+        // This feature turned out to be too much for the onboard flash.
+        // Maybe resurrect it in the future.
+
+        case 47: //Write 'hello' in Mac Paint
+            if(paintFrame < numFrames){
+                for (const Point *p = frames[paintFrame]; p->x != 0xFF || p->y != 0xFF; p++) {
+                    buffer_drawPixel(p->x, p->y,0);
+                }
+                Delay_Ms(100); //delay between each frame.
+                paintFrame += 1;
+            }else{
+                //we're done, move along.
+                paintFrame = 0;
+                buffer_clear(1);
+                data[2] = 1;
+            }
+
+        break;
+        */
+
+        case 22: //Mouse To menu
+            // Move the mouse to a menu position, opens menu. Scrolls down to that item. Uses the "wait" value in store to 
+            // determine if it's made it to the menu.
+
+            // which menu, which item in the menu.
+            // menubar(1, *(++(*command)), *(++(*command)));
+            int8_t menu = *(++(*command));
+            uint8_t menuItem = *(++(*command));
+
+            if(data[3] == 0) {
+                //going to the menu
+                
+                data[3] = mouseTo(data, menuData[menu][0] + 1, 3);
+            }else{
+                //we've reached the menu
+                menubar(1, menu, (data[1] - 4)  / 4);   //the mouse over this thing is: mouse y %4
+                data[2] = mouseTo(data, menuData[menu][0] + 1, menuItem * 3);
+                Delay_Ms(40);
+                if(data[2]) data[3] = 0;
+            }
+
+
+        break;        
+
+        case 23: //draw a circle to the buffer
+            buffer_drawCircle(*(++(*command)),*(++(*command)),*(++(*command)),*(++(*command)));
+            data[2] = 1;
+        break;
+
+        case 24: //draw a circle to the buffer
+            buffer_drawFilledCircle(*(++(*command)),*(++(*command)),*(++(*command)),*(++(*command)));
+            data[2] = 1;
+        break;
+
         case 48: // Settings
 
         int a = *(++(*command));
 
         // Draw the settings window
-        window(2, 8, 60, 34, 0);
+        // window(2, 8, 60, 34, 0);
+        window(2, 6, 60, 40, 0);
+
 
         //Selected Address x position
         int o = (a==10)? 4 : (a==34)? 24 : 43;
 
         // "I2C Address"
-        writeChar(4, 16, 73, 0);
-        writeChar(9, 16, 50, 0);
-        writeChar(14, 16, 67, 0);
+        writeChar(4, 14, 73, 0);
+        writeChar(9, 14, 50, 0);
+        writeChar(14, 14, 67, 0);
 
-        writeChar(24, 16, 65, 0);
-        writeChar(29, 16, 68, 0);
-        writeChar(34, 16, 68, 0);
-        writeChar(39, 16, 82, 0);
+        writeChar(24, 14, 65, 0);
+        writeChar(29, 14, 68, 0);
+        writeChar(34, 14, 68, 0);
+        writeChar(39, 14, 82, 0);
 
-        writeChar(44, 16, 69, 0);
-        writeChar(49, 16, 83, 0);
-        writeChar(54, 16, 83, 0);
+        writeChar(44, 14, 69, 0);
+        writeChar(49, 14, 83, 0);
+        writeChar(54, 14, 83, 0);
 
         //Address Options
-        ssd1306_fillRect(o, 29, 17, 9, 0);
-        ssd1306_drawstr(5, 30, "0A", a==10 ? 1 : 0);
-        ssd1306_drawstr(25, 30, "22", a == 34 ? 1 : 0);
-        ssd1306_drawstr(44, 30, "56", a == 86 ? 1 : 0);
+        ssd1306_fillRect(o, 24, 17, 9, 0);
+        ssd1306_drawstr(5,26, "0A", a==10 ? 1 : 0);
+        ssd1306_drawstr(25,26, "22", a == 34 ? 1 : 0);
+        ssd1306_drawstr(44,26, "56", a == 86 ? 1 : 0);
+
+        //Version placement
+        const uint8_t verY = 36;
+        const uint8_t verX = 45;
+
+        //v1.1
+        writeChar(verX,     verY, 118, 0);
+        writeChar(verX + 5, verY,  49, 0);
+        writeChar(verX + 8, verY,  46, 0);
+        writeChar(verX + 10, verY, 49, 0);
 
         // ssd1306_drawFastHLine(4, 28, 16, 0);
 
         break;
-        case 22: //Mouse To menu
-        // Move the mouse to a menu position, opens menu. Scrolls down to that item. Uses the "wait" value in store to 
-        // determine if it's made it to the menu.
 
-        // which menu, which item in the menu.
-        // menubar(1, *(++(*command)), *(++(*command)));
-        int8_t menu = *(++(*command));
-        uint8_t menuItem = *(++(*command));
-
-        if(data[3] == 0) {
-            //going to the menu
-            
-            data[3] = mouseTo(data, menuData[menu][0] + 1, 3);
-        }else{
-            //we've reached the menu
-            menubar(1, menu, (data[1] - 4)  / 4);   //the mouse over this thing is: mouse y %4
-            data[2] = mouseTo(data, menuData[menu][0] + 1, menuItem * 3);
-            Delay_Ms(40);
-            if(data[2]) data[3] = 0;
-        }
-
-
-        break;
+       
     }
 
 }
