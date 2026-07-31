@@ -81,7 +81,8 @@
 		(pad_to_mask_clearance 0)
 		(allow_soldermask_bridges_in_footprints no)
 		(tenting front back)
-		(grid_origin 30.1 29.9)
+		(aux_axis_origin 155.962477 105.65)
+		(grid_origin 166.34 101.65)
 		(pcbplotparams
 			(layerselection 0x00000000_00000000_55555555_5755f5ff)
 			(plot_on_all_layers_selection 0x00000000_00000000_00000000_00000000)
@@ -3586,78 +3587,6 @@
 				(bold yes)
 			)
 			(justify left bottom)
-		)
-	)
-	(dimension
-		(type aligned)
-		(layer "B.Paste")
-		(uuid "1c417c1b-22d4-4e21-bbc2-0b482e7b1426")
-		(pts
-			(xy 179.964109 73.624678) (xy 155.1 73.624678)
-		)
-		(height 3.924678)
-		(format
-			(prefix "")
-			(suffix "")
-			(units 3)
-			(units_format 1)
-			(precision 4)
-		)
-		(style
-			(thickness 0.1)
-			(arrow_length 1.27)
-			(text_position_mode 0)
-			(arrow_direction outward)
-			(extension_height 0.58642)
-			(extension_offset 0.5)
-			(keep_text_aligned yes)
-		)
-		(gr_text "24.8641 mm"
-			(at 167.532054 68.55 0)
-			(layer "B.Paste")
-			(uuid "1c417c1b-22d4-4e21-bbc2-0b482e7b1426")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-	)
-	(dimension
-		(type aligned)
-		(layer "B.Paste")
-		(uuid "ef3e590d-2357-4cec-81a4-a2ffbba4b4d2")
-		(pts
-			(xy 155.85861 72.866068) (xy 155.962477 106.435595)
-		)
-		(height 9.27869)
-		(format
-			(prefix "")
-			(suffix "")
-			(units 3)
-			(units_format 1)
-			(precision 4)
-		)
-		(style
-			(thickness 0.1)
-			(arrow_length 1.27)
-			(text_position_mode 2)
-			(arrow_direction outward)
-			(extension_height 0.58642)
-			(extension_offset 0.5)
-			(keep_text_aligned yes)
-		)
-		(gr_text "33.5697 mm"
-			(at 148.1 89.6 270.1772792)
-			(layer "B.Paste")
-			(uuid "ef3e590d-2357-4cec-81a4-a2ffbba4b4d2")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
 		)
 	)
 	(segment
