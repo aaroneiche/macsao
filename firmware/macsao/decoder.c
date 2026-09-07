@@ -31,6 +31,22 @@ uint8_t y = 0;
 uint8_t curr = 0;
 uint8_t paintFrame = 0;
 
+// Draws a string with the 5px-wide narrow font (see writeChar), one character at a time.
+void writeStr(uint8_t x, uint8_t y, const char *str, uint8_t color) {
+    while (*str) {
+        writeChar(x, y, *str, color);
+        x += 5;
+        str++;
+    }
+}
+
+// Draws a byte as two hex digits with the narrow font.
+void writeHexByte(uint8_t x, uint8_t y, uint8_t val, uint8_t color) {
+    const char hexDigits[] = "0123456789ABCDEF";
+    writeChar(x, y, hexDigits[(val >> 4) & 0xF], color);
+    writeChar(x + 5, y, hexDigits[val & 0xF], color);
+}
+
 /*
     Decoder steps through items in the command list and decodes them to executing methods.
 
@@ -303,13 +319,46 @@ void decoder(uint8_t **command, uint8_t data[])
         writeChar(verX,     verY, 118, 0);
         writeChar(verX + 5, verY,  49, 0);
         writeChar(verX + 8, verY,  46, 0);
-        writeChar(verX + 10, verY, 49, 0);
+        writeChar(verX + 10, verY, 50, 0);
 
         // ssd1306_drawFastHLine(4, 28, 16, 0);
 
         break;
 
-       
+        case 49: // EEPROM Self-Test result screen
+
+        int result = *(++(*command)); // 0 = FAIL, 1 = PASS
+
+        window(2, 6, 60, 40, 0);
+
+        writeStr(4, 14, "EEPROM TEST", 0);
+
+        ssd1306_fillRect(14, 24, 36, 9, 0);
+        writeStr(18, 26, result ? "PASS" : "FAIL", 1);
+
+        break;
+
+        case 50: // Preferences dump (diagnostic): raw bytes read back from EEPROM address 0x0000
+        {
+            uint8_t addr = *(++(*command));
+            uint8_t loadHi = *(++(*command));
+            uint8_t loadLo = *(++(*command));
+            uint8_t len = *(++(*command));
+
+            window(2, 6, 60, 40, 0);
+
+            writeStr(4, 14, "ADDR", 0);
+            writeHexByte(34, 14, addr, 0);
+
+            writeStr(4, 22, "LOAD", 0);
+            writeHexByte(29, 24, loadHi, 0);
+            writeHexByte(39, 24, loadLo, 0);
+
+            writeStr(4, 34, "LEN", 0);
+            writeHexByte(29, 34, len, 0);
+        }
+        break;
+
     }
 
 }

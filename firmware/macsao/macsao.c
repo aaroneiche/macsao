@@ -142,6 +142,10 @@ volatile uint8_t settingsStack[32] = {
 
 volatile uint8_t preferences[16];
 
+// Which settings screen is shown: 0-2 are the I2C address options (10,34,86), 3 is the EEPROM
+// self-test, 4 is a read-only dump of the stored preference bytes for diagnostics.
+uint8_t settingsScreen = 0;
+
 /* 
 These variables keep track of the step in the sequence we're on, 
 as well as the item in the sequence we're currently drawing.
@@ -423,10 +427,52 @@ void getStored(uint16_t address, uint8_t data[], uint8_t length) {
 		swi2c_master_rx_byte(&eeprom, I2C_NACK);
 		swi2c_stop(&eeprom);
 	}
-	
+
 }
 
-/*  
+// Total size of the onboard 24C08A (8Kbit = 1Kbyte). It only decodes the low 10 address bits,
+// so any 16-bit address at or past this wraps back around into real, valid memory instead of
+// failing outright - which is exactly what let a garbage loadFromAddr alias onto real data at boot.
+#define EEPROM_CAPACITY 0x0400
+
+// Scratch location used by eepromSelfTest(): the last page of the chip, chosen so it can't
+// collide with preferences (0x0000) or stored animation data.
+#define EEPROM_SELFTEST_ADDR (EEPROM_CAPACITY - 16)
+#define EEPROM_SELFTEST_LEN  8
+
+// Writes a known pattern to a scratch page of the EEPROM, reads it back, and restores what was
+// there before. Returns true if the chip ACKs its address and reads back exactly what was written.
+bool eepromSelfTest(void) {
+	uint8_t original[EEPROM_SELFTEST_LEN];
+	uint8_t readback[EEPROM_SELFTEST_LEN];
+	uint8_t pattern[EEPROM_SELFTEST_LEN] = {0xA5, 0x5A, 0x00, 0xFF, 0x3C, 0xC3, 0x81, 0x18};
+
+	swi2c_init(&eeprom); // Reset the bus in case a prior transaction was left mid-stream.
+
+	// Confirm the chip is even present before touching its memory.
+	if (swi2c_start(&eeprom) != I2C_OK || swi2c_master_tx_byte(&eeprom, eeprom.address) != I2C_OK) {
+		swi2c_stop(&eeprom);
+		return false;
+	}
+	swi2c_stop(&eeprom);
+
+	getStored(EEPROM_SELFTEST_ADDR, original, EEPROM_SELFTEST_LEN);
+
+	writeData((EEPROM_SELFTEST_ADDR >> 8) & 0xFF, EEPROM_SELFTEST_ADDR & 0xFF, pattern, EEPROM_SELFTEST_LEN);
+	Delay_Ms(10); // EEPROM internal write-cycle time.
+
+	getStored(EEPROM_SELFTEST_ADDR, readback, EEPROM_SELFTEST_LEN);
+
+	bool ok = memcmp(pattern, readback, EEPROM_SELFTEST_LEN) == 0;
+
+	// Put back whatever was there before, regardless of outcome.
+	writeData((EEPROM_SELFTEST_ADDR >> 8) & 0xFF, EEPROM_SELFTEST_ADDR & 0xFF, original, EEPROM_SELFTEST_LEN);
+	Delay_Ms(10);
+
+	return ok;
+}
+
+/*
 Button press Interrupt
 */
 void EXTI7_0_IRQHandler(void) __attribute__((interrupt));
@@ -569,13 +615,14 @@ int main()
 	}
 	//Make sure the display data for settings is up-to-date.
 	settingsStack[3] = preferences[0];
+	settingsScreen = (preferences[0] == 34) ? 1 : (preferences[0] == 86) ? 2 : 0;
 
 	// Preferences 1 and 2 are address bytes (high and low) load data from.
 	uint16_t loadFromAddr = (preferences[1] << 8) | preferences[2];
 	printf("loadFrom address: %4x\n", loadFromAddr, preferences[1], preferences[2]);
 	//Preferences 3 is the number of bytes to load.
 
-	if(loadFromAddr != 0 && loadFromAddr != 0xFFFF ) {
+	if(loadFromAddr != 0 && loadFromAddr != 0xFFFF && loadFromAddr < EEPROM_CAPACITY) {
 		printf("Stored address is %4x. Loading...\n", loadFromAddr);
 		// Get data from eeprom
 		getStored(loadFromAddr, displayStack, preferences[3]);
@@ -615,20 +662,28 @@ int main()
 		// printf("post button check. State now: %u\n",state);
 		if(buttonShortPress) {
 			if(mode == SETTINGS){
-				//advance I2C Address
-				switch(preferences[0]) {
-					case 10:
-						preferences[0] = 34;
-					break;
-					case 34:
-						preferences[0] = 86;
-					break;
-					case 86:
-						preferences[0] = 10;
-					break;
+				// Cycle: address 10 -> 34 -> 86 -> EEPROM self-test -> preferences dump -> back to 10.
+				settingsScreen = (settingsScreen + 1) % 5;
+
+				if(settingsScreen < 3) {
+					preferences[0] = (settingsScreen == 0) ? 10 : (settingsScreen == 1) ? 34 : 86;
+					setI2CAddress(preferences[0]);
+					settingsStack[2] = 48; // Address screen
+					settingsStack[3] = preferences[0];
+				} else if(settingsScreen == 3) {
+					// Run the test now and stash the result for the decoder to draw.
+					settingsStack[2] = 49; // EEPROM self-test screen
+					settingsStack[3] = eepromSelfTest() ? 1 : 0;
+				} else {
+					// Re-read preferences from the EEPROM fresh, rather than trusting the boot-time copy.
+					getStored(0x0000, preferences, 16);
+					settingsStack[2] = 50; // Preferences dump screen
+					settingsStack[3] = preferences[0];
+					settingsStack[4] = preferences[1];
+					settingsStack[5] = preferences[2];
+					settingsStack[6] = preferences[3];
 				}
-				settingsStack[3] = preferences[0];
-				setI2CAddress(preferences[0]);
+
 				stackPtr = settingsStack;
 				// printf("stack pointer again at\n: %u",stackPtr);
 			}
